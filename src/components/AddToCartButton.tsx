@@ -1,29 +1,51 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useCart } from "@/context/CartContext";
+import { useState } from 'react';
+import { addToCart } from '../api/cart';
+import { useCart } from '@/context/CartContext';
 
 interface AddToCartButtonProps {
-  productId: number;
+  productId: number | string;
 }
 
-export function AddToCartButton({ productId }: AddToCartButtonProps) {
-  const { addToCart } = useCart();
-  const [isLoading, setIsLoading] = useState(false);
+const AddToCartButton: React.FC<AddToCartButtonProps> = ({ productId }) => {
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const { updateCart, openCartSidebar } = useCart();
 
-  const handleClick = async () => {
-    setIsLoading(true);
-    await addToCart(productId, 1);
-    setIsLoading(false);
+  const handleAddToCart = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault(); // Prevent the Link parent from navigating
+    event.stopPropagation(); // Stop the event from bubbling up
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const cartData = await addToCart(productId);
+      updateCart(cartData);
+      openCartSidebar();
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred.");
+      // Optional: auto-hide the error message after a few seconds
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isLoading}
-      className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-colors hover:bg-blue-700 disabled:bg-neutral-400 disabled:cursor-not-allowed"
-    >
-      {isLoading ? "Adding..." : "Add to Cart"}
-    </button>
+    <>
+      <button
+        onClick={handleAddToCart}
+        disabled={loading}
+        className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+      >
+        {loading ? 'Adding...' : 'Add to Cart'}
+      </button>
+
+      {error && <p className="text-red-500 text-xs mt-2 text-center">{error}</p>}
+    </>
   );
-}
+};
+
+export default AddToCartButton;

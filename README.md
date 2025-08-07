@@ -1,3 +1,7 @@
+I'm building a headless eCommerce frontend using Next.js with the App Router, located inside the src/app directory. The backend is powered by WooCommerce, hosted on a subdirectory (/store) of the same domain. I'm using CoCart to manage the shopping cart for guest users by handling sessions and cart data through the WooCommerce REST API. The frontend allows users to browse products, view product details, and add items to the cart. However, the checkout process is not handled on the frontend — users are redirected to the native WooCommerce checkout page. Authentication is not implemented at this stage. The project uses Tailwind CSS for styling, Context API for global state (cart), and follows a modular structure with clean separation between components, context, and API layers. This setup is designed to be scalable and reusable as a template for future eCommerce projects.
+
+
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

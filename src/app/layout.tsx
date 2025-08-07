@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
+import { CartProvider } from "@/context/CartContext"; // NEW
+import { CartSidebar } from "@/components/CartSidebar"; // NEW
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,8 +23,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} font-sans antialiased`}>
-        <Header />
-        <main className="container mx-auto p-4 sm:p-6 md:p-8">{children}</main>
+        <CartProvider> {/* NEW: Wrap everything in the CartProvider */}
+          <Header />
+          <CartSidebar /> {/* NEW: Render the sidebar globally */}
+          <main className="container mx-auto p-4 sm:p-6 md:p-8">{children}</main>
+        </CartProvider>
       </body>
     </html>
   );

@@ -1,27 +1,23 @@
-import { getProductById } from "@/api/products"; 
+import { getProductById } from "@/api/products";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import AddToCartButton from "@/components/AddToCartButton";
 
 interface ProductPageProps {
   params: {
-    // This value is from the folder name [slug], but we'll treat it as an ID.
     slug: string;
   };
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  // Convert the slug parameter from the URL into a number for the ID
   const productId = parseInt(params.slug, 10);
 
-  // If the parameter is not a valid number, show a 404 page
   if (isNaN(productId)) {
     notFound();
   }
 
-  // Fetch the specific product using its ID
   const product = await getProductById(productId);
 
-  // If no product is found, display the 404 page
   if (!product) {
     notFound();
   }
@@ -51,10 +47,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
           }}
         />
         <div
-          className="prose dark:prose-invert max-w-none"
+          className="prose dark:prose-invert max-w-none mb-4"
           dangerouslySetInnerHTML={{ __html: product.description }}
         />
-        {product.stock_status !== "instock" && (
+        
+        {/* UPDATED LOGIC: Changed from '===' to '!==' to handle null status */}
+        {product.stock_status !== "outofstock" ? (
+          <AddToCartButton productId={product.id} />
+        ) : (
           <p className="mt-4 text-lg font-bold text-red-500">Out of Stock</p>
         )}
       </div>
