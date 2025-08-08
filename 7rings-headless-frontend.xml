@@ -68,93 +68,6 @@ tsconfig.json
 <files>
 This section contains the contents of the repository's files.
 
-<file path="src/api/cart.ts">
-import { CoCartResponse } from "@/types/cocart";
-
-export const addToCart = async (productId: string | number, quantity: number = 1): Promise<CoCartResponse> => {
-  const cartBaseUrl = process.env.NEXT_PUBLIC_WOOCOMMERCE_URL_CART;
-  const cartEndpoint = process.env.NEXT_PUBLIC_WOOCOMMERCE_URL_CART_ENDPOINT_TO_SEND_BACK_PRODUCT_ID;
-
-  if (!cartBaseUrl) {
-    throw new Error("WooCommerce Cart Base URL (NEXT_PUBLIC_WOOCOMMERCE_URL_CART) is not defined in environment variables.");
-  }
-  
-  if (!cartEndpoint) {
-    throw new Error("WooCommerce add to cart endpoint (NEXT_PUBLIC_WOOCOMMERCE_URL_CART_ENDPOINT_TO_SEND_BACK_PRODUCT_ID) is not defined in environment variables.");
-  }
-
-  const apiUrl = `${cartBaseUrl}${cartEndpoint}`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: String(productId),
-        quantity: String(quantity),
-      }),
-      // --- THIS IS THE FIX ---
-      // This tells the browser to send cookies with this API request.
-      credentials: 'include', 
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to add item to cart');
-    }
-
-    return data as CoCartResponse;
-  } catch (error) {
-    console.error('Error adding to cart:', error);
-    throw error;
-  }
-};
-</file>
-
-<file path="src/types/cocart.d.ts">
-// A single item in the cart
-export interface CoCartItem {
-  item_key: string;
-  id: number;
-  name: string;
-  title: string;
-  price: string;
-  featured_image?: string; // NEW: Add optional featured_image
-  quantity: {
-    value: number;
-    min_purchase: number;
-    max_purchase: number;
-  };
-  totals: {
-    subtotal: number;
-    subtotal_tax: number;
-    total: number;
-    tax: number;
-  };
-  slug: string;
-}
-
-// The entire cart response from CoCart
-export interface CoCartResponse {
-  items: CoCartItem[];
-  item_count: number;
-  totals: {
-    subtotal: string;
-    subtotal_tax: string;
-    fee_total: string;
-    fee_tax: string;
-    discount_total: string;
-    discount_tax: string;
-    shipping_total: string;
-    shipping_tax: string;
-    total: string;
-  };
-}
-</file>
-
 <file path=".gitignore">
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
@@ -275,47 +188,76 @@ const config = {
 export default config;
 </file>
 
-<file path="README.md">
-I'm building a headless eCommerce frontend using Next.js with the App Router, located inside the src/app directory. The backend is powered by WooCommerce, hosted on a subdirectory (/store) of the same domain. I'm using CoCart to manage the shopping cart for guest users by handling sessions and cart data through the WooCommerce REST API. The frontend allows users to browse products, view product details, and add items to the cart. However, the checkout process is not handled on the frontend — users are redirected to the native WooCommerce checkout page. Authentication is not implemented at this stage. The project uses Tailwind CSS for styling, Context API for global state (cart), and follows a modular structure with clean separation between components, context, and API layers. This setup is designed to be scalable and reusable as a template for future eCommerce projects.
+<file path="src/api/cart.ts">
+import { CoCartResponse } from "@/types/cocart";
+
+// This should be the base URL of your Node.js backend
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// NEW: Function to get the cart from your backend
+export const getCart = async (): Promise<CoCartResponse> => {
+  if (!API_BASE_URL) {
+    throw new Error("API Base URL (NEXT_PUBLIC_API_URL) is not defined in environment variables.");
+  }
+  
+  const apiUrl = `${API_BASE_URL}/cart`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include', // Important: sends cookies with the request
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch cart');
+    }
+
+    return data as CoCartResponse;
+  } catch (error) {
+    console.error('Error fetching cart:', error);
+    throw error;
+  }
+};
 
 
+export const addToCart = async (productId: string | number): Promise<CoCartResponse> => {
+  if (!API_BASE_URL) {
+    throw new Error("API Base URL (NEXT_PUBLIC_API_URL) is not defined in environment variables.");
+  }
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+  const apiUrl = `${API_BASE_URL}/cart/add-item`;
 
-## Getting Started
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: String(productId),
+        quantity: "1", // You can make this dynamic if needed
+      }),
+      // This tells the browser to send cookies (like the cart_key) with this API request.
+      credentials: 'include', 
+    });
 
-First, run the development server:
+    const data = await response.json();
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to add item to cart');
+    }
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+    return data as CoCartResponse;
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    throw error;
+  }
+};
 </file>
 
 <file path="src/api/products.ts">
@@ -417,6 +359,293 @@ export default function ProductLoading() {
 }
 </file>
 
+<file path="src/app/globals.css">
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+</file>
+
+<file path="src/app/loading.tsx">
+export default function Loading() {
+  return (
+    <div className="flex justify-center items-center h-screen">
+      <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/CartSidebar.tsx">
+"use client";
+
+import Image from "next/image";
+import { useCart } from "@/context/CartContext";
+
+// Helper function to format currency
+const formatPrice = (priceString: string | number) => {
+  const price = Number(priceString);
+  if (isNaN(price)) {
+    // Fallback for pre-formatted HTML strings if any
+    return { __html: String(priceString) };
+  }
+
+  // Example for USD. Change 'en-US' and currency 'USD' as needed.
+  const formattedPrice = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2, // This controls the decimal places
+  }).format(price);
+
+  return { __html: formattedPrice };
+};
+
+export function CartSidebar() {
+  const { cart, isCartSidebarOpen, closeCartSidebar } = useCart();
+  const checkoutUrl = process.env.NEXT_PUBLIC_CHECKOUT_URL;
+
+  if (!isCartSidebarOpen) return null;
+
+  return (
+    <>
+      {/* Overlay */}
+      <div
+        className="fixed inset-0 bg-black/50 z-20"
+        onClick={closeCartSidebar}
+      />
+
+      {/* Sidebar */}
+      <aside className="fixed top-0 right-0 h-full w-full max-w-sm bg-background z-30 flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-xl font-semibold">Shopping Cart</h2>
+          <button
+            onClick={closeCartSidebar}
+            className="p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          >
+            &times;
+          </button>
+        </div>
+
+        {cart && cart.items.length > 0 ? (
+          <div className="flex-1 overflow-y-auto p-4">
+            <ul className="divide-y">
+              {cart.items.map((item) => (
+                <li
+                  key={item.item_key}
+                  className="flex items-center gap-4 py-4"
+                >
+                  <div className="relative h-20 w-20 rounded-md overflow-hidden border">
+                    <Image
+                      src={item.featured_image || "/placeholder.svg"}
+                      alt={item.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold">{item.name}</p>
+                    <p className="text-sm text-foreground/70">
+                      Quantity: {item.quantity.value}
+                    </p>
+                  </div>
+                  <p
+                    className="font-medium"
+                    dangerouslySetInnerHTML={formatPrice(item.price)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <p>Your cart is empty.</p>
+          </div>
+        )}
+
+        {cart && cart.items.length > 0 && (
+          <div className="border-t p-4 space-y-4">
+            <div className="flex justify-between font-bold text-lg">
+              <span>Subtotal:</span>
+              {/* UPDATED SUBTOTAL DISPLAY */}
+              <span
+                dangerouslySetInnerHTML={formatPrice(cart.totals.subtotal)}
+              />
+            </div>
+            <a
+              href={checkoutUrl}
+              className="block w-full text-center bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors hover:bg-green-700"
+            >
+              Proceed to Checkout
+            </a>
+          </div>
+        )}
+      </aside>
+    </>
+  );
+}
+</file>
+
+<file path="src/lib/types.ts">
+export interface ProductImage {
+  id: number;
+  src: string;
+  name: string;
+  alt: string;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  slug: string;
+  permalink: string;
+  description: string;
+  short_description: string;
+  price: string;
+  regular_price: string;
+  sale_price: string;
+  on_sale: boolean;
+  images: ProductImage[];
+  stock_status: "instock" | "outofstock";
+  price_html?: string; // Optional price_html for consistency
+}
+</file>
+
+<file path="src/types/cocart.d.ts">
+// A single item in the cart
+export interface CoCartItem {
+  item_key: string;
+  id: number;
+  name: string;
+  title: string;
+  price: string;
+  featured_image?: string; // NEW: Add optional featured_image
+  quantity: {
+    value: number;
+    min_purchase: number;
+    max_purchase: number;
+  };
+  totals: {
+    subtotal: number;
+    subtotal_tax: number;
+    total: number;
+    tax: number;
+  };
+  slug: string;
+}
+
+// The entire cart response from CoCart
+export interface CoCartResponse {
+  items: CoCartItem[];
+  item_count: number;
+  totals: {
+    subtotal: string;
+    subtotal_tax: string;
+    fee_total: string;
+    fee_tax: string;
+    discount_total: string;
+    discount_tax: string;
+    shipping_total: string;
+    shipping_tax: string;
+    total: string;
+  };
+}
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="README.md">
+I'm building a headless eCommerce frontend using Next.js with the App Router, located inside the src/app directory. The backend is powered by WooCommerce, hosted on a subdirectory (/store) of the same domain. I'm using CoCart to manage the shopping cart for guest users by handling sessions and cart data through the WooCommerce REST API. The frontend allows users to browse products, view product details, and add items to the cart. However, the checkout process is not handled on the frontend — users are redirected to the native WooCommerce checkout page. Authentication is not implemented at this stage. The project uses Tailwind CSS for styling, Context API for global state (cart), and follows a modular structure with clean separation between components, context, and API layers. This setup is designed to be scalable and reusable as a template for future eCommerce projects.
+
+
+
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+</file>
+
 <file path="src/app/(main)/products/[slug]/page.tsx">
 import { getProductById } from "@/api/products";
 import { notFound } from "next/navigation";
@@ -483,35 +712,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
 }
 </file>
 
-<file path="src/app/globals.css">
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-</file>
-
 <file path="src/app/layout.tsx">
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
@@ -549,22 +749,12 @@ export default function RootLayout({
 }
 </file>
 
-<file path="src/app/loading.tsx">
-export default function Loading() {
-  return (
-    <div className="flex justify-center items-center h-screen">
-      <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
-    </div>
-  );
-}
-</file>
-
 <file path="src/components/AddToCartButton.tsx">
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { addToCart } from '../api/cart';
-import { useCart } from '@/context/CartContext';
+import { useState } from "react";
+import { addToCart } from "../api/cart";
+import { useCart } from "@/context/CartContext";
 
 interface AddToCartButtonProps {
   productId: number | string;
@@ -575,9 +765,11 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ productId }) => {
   const [error, setError] = useState<string | null>(null);
   const { updateCart, openCartSidebar } = useCart();
 
-  const handleAddToCart = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault(); // Prevent the Link parent from navigating
-    event.stopPropagation(); // Stop the event from bubbling up
+  const handleAddToCart = async (
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
 
     setLoading(true);
     setError(null);
@@ -586,13 +778,15 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ productId }) => {
       const cartData = await addToCart(productId);
       updateCart(cartData);
       openCartSidebar();
-    } catch (err: any) {
-      setError(err.message || "An unknown error occurred.");
-      // Optional: auto-hide the error message after a few seconds
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred.");
+      }
+    } finally { // --- START OF FIX ---
+      setLoading(false); // This ensures the button state is always reset
+    } 
   };
 
   return (
@@ -602,92 +796,17 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({ productId }) => {
         disabled={loading}
         className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
       >
-        {loading ? 'Adding...' : 'Add to Cart'}
+        {loading ? "Adding..." : "Add to Cart"}
       </button>
 
-      {error && <p className="text-red-500 text-xs mt-2 text-center">{error}</p>}
+      {error && (
+        <p className="text-red-500 text-xs mt-2 text-center">{error}</p>
+      )}
     </>
   );
 };
 
 export default AddToCartButton;
-</file>
-
-<file path="src/components/CartSidebar.tsx">
-"use client";
-
-import Image from "next/image";
-import { useCart } from "@/context/CartContext";
-
-export function CartSidebar() {
-  const { cart, isCartSidebarOpen, closeCartSidebar } = useCart();
-  const checkoutUrl = process.env.NEXT_PUBLIC_CHECKOUT_URL;
-
-  if (!isCartSidebarOpen) return null;
-
-  return (
-    <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black/50 z-20"
-        onClick={closeCartSidebar}
-      />
-      
-      {/* Sidebar */}
-      <aside className="fixed top-0 right-0 h-full w-full max-w-sm bg-background z-30 flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-semibold">Shopping Cart</h2>
-          <button onClick={closeCartSidebar} className="p-2 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800">
-            &times;
-          </button>
-        </div>
-
-        {cart && cart.items.length > 0 ? (
-          <div className="flex-1 overflow-y-auto p-4">
-            <ul className="divide-y">
-              {cart.items.map((item) => (
-                <li key={item.item_key} className="flex items-center gap-4 py-4">
-                  <div className="relative h-20 w-20 rounded-md overflow-hidden border">
-                    <Image
-                      src={item.featured_image || "/placeholder.svg"}
-                      alt={item.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold">{item.name}</p>
-                    <p className="text-sm text-foreground/70">Quantity: {item.quantity.value}</p>
-                  </div>
-                  <p className="font-medium" dangerouslySetInnerHTML={{ __html: item.price }}/>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p>Your cart is empty.</p>
-          </div>
-        )}
-
-        {cart && cart.items.length > 0 && (
-          <div className="border-t p-4 space-y-4">
-            <div className="flex justify-between font-bold text-lg">
-              <span>Subtotal:</span>
-              <span dangerouslySetInnerHTML={{ __html: cart.totals.subtotal }}/>
-            </div>
-            <a
-              href={checkoutUrl}
-              className="block w-full text-center bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors hover:bg-green-700"
-            >
-              Proceed to Checkout
-            </a>
-          </div>
-        )}
-      </aside>
-    </>
-  );
-}
 </file>
 
 <file path="src/components/Header.tsx">
@@ -796,8 +915,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { CoCartResponse } from '@/types/cocart';
-// We are not using getCart, so the import can be removed or left for later.
-// import { getCart } from '@/api/cart'; 
+import { getCart } from '@/api/cart'; 
 
 interface ICartContext {
   cart: CoCartResponse | null;
@@ -816,13 +934,10 @@ interface CartProviderProps {
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [cart, setCart] = useState<CoCartResponse | null>(null);
-  // Set loading to false initially since we are not fetching.
-  const [loading, setLoading] = useState<boolean>(false); 
+  const [loading, setLoading] = useState<boolean>(true); // Set initial loading to true
   const [isCartSidebarOpen, setIsCartSidebarOpen] = useState(false);
 
-  // By commenting out this useEffect block, the app will no longer
-  // try to fetch the cart when it first loads.
-  
+  // This function fetches the initial cart state from the backend
   const fetchInitialCart = useCallback(async () => {
     setLoading(true);
     try {
@@ -830,12 +945,14 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       setCart(cartData);
     } catch (error) {
       console.error("Failed to fetch initial cart:", error);
+      // Set a default empty cart structure on failure
       setCart({ items: [], item_count: 0, totals: { subtotal: '0', subtotal_tax: '0', fee_total: '0', fee_tax: '0', discount_total: '0', discount_tax: '0', shipping_total: '0', shipping_tax: '0', total: '0' } });
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // UseEffect to run the fetch function once when the component mounts
   useEffect(() => {
     fetchInitialCart();
   }, [fetchInitialCart]);
@@ -862,61 +979,6 @@ export const useCart = (): ICartContext => {
   }
   return context;
 };
-</file>
-
-<file path="src/lib/types.ts">
-export interface ProductImage {
-  id: number;
-  src: string;
-  name: string;
-  alt: string;
-}
-
-export interface Product {
-  id: number;
-  name: string;
-  slug: string;
-  permalink: string;
-  description: string;
-  short_description: string;
-  price: string;
-  regular_price: string;
-  sale_price: string;
-  on_sale: boolean;
-  images: ProductImage[];
-  stock_status: "instock" | "outofstock";
-  price_html?: string; // Optional price_html for consistency
-}
-</file>
-
-<file path="tsconfig.json">
-{
-  "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
-}
 </file>
 
 </files>
